@@ -52,15 +52,20 @@ def extract_token_info(tx):
 async def ws_listener():
     global tokens
     async with websockets.connect(WS_URL) as ws:
-        print("🔌 WebSocket к Helius подключен")
+        print("🔌 Подключено к WebSocket (transactionSubscribe)")
 
         await ws.send(json.dumps({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "logsSubscribe",
+            "method": "transactionSubscribe",
             "params": [
-                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-                {"commitment": "confirmed"}
+                {
+                    "mentions": ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]
+                },
+                {
+                    "encoding": "jsonParsed",
+                    "commitment": "confirmed"
+                }
             ]
         }))
 
@@ -69,15 +74,19 @@ async def ws_listener():
                 msg = await ws.recv()
                 data = json.loads(msg)
 
-                logs = data.get("params", {}).get("result", {}).get("logs", [])
-                signature = data.get("params", {}).get("result", {}).get("signature")
+                tx = data.get("params", {}).get("result", {}).get("transaction", {})
+                logs = data.get("params", {}).get("result", {}).get("meta", {}).get("logMessages", [])
+                signature = data.get("params", {}).get("result", {}).get("transaction", {}).get("signatures", [""])[0]
 
                 print("📥 logs:", logs)
 
                 if any("Program log: Instruction: InitializeMint" in log for log in logs):
-                    print(f"🔍 Токен найден, сигнатура: {signature}")
-                    tx = get_transaction(signature)
-                    new_tokens = extract_token_info(tx)
+                    print(f"🔍 Токен найден: {signature}")
+                    tx_data = {
+                        "transaction": tx,
+                        "meta": data.get("params", {}).get("result", {}).get("meta", {})
+                    }
+                    new_tokens = extract_token_info(tx_data)
                     for t in new_tokens:
                         if t not in tokens:
                             tokens.append(t)
