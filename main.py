@@ -68,8 +68,11 @@ async def ws_listener():
             try:
                 msg = await ws.recv()
                 data = json.loads(msg)
+
                 logs = data.get("params", {}).get("result", {}).get("logs", [])
                 signature = data.get("params", {}).get("result", {}).get("signature")
+
+                print("📥 logs:", logs)
 
                 if any("Program log: Instruction: InitializeMint" in log for log in logs):
                     print(f"🔍 Токен найден, сигнатура: {signature}")
